@@ -289,7 +289,9 @@ func (c *client) mainloop(ctx context.Context, params *lookupParams) {
 					delete(sentEntries, k)
 					continue
 				}
-				if _, ok := sentEntries[k]; ok {
+
+				var sentEntryKey = k + "-" + e.HostName
+				if _, ok := sentEntries[sentEntryKey]; ok {
 					continue
 				}
 
@@ -306,7 +308,7 @@ func (c *client) mainloop(ctx context.Context, params *lookupParams) {
 				// This is also a point to possibly stop probing actively for a
 				// service entry.
 				params.Entries <- e
-				sentEntries[k] = e
+				sentEntries[sentEntryKey] = e
 				if !params.isBrowsing {
 					params.disableProbing()
 				}
