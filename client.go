@@ -3,6 +3,7 @@ package zeroconf
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"math/rand"
 	"net"
@@ -290,8 +291,9 @@ func (c *client) mainloop(ctx context.Context, params *lookupParams) {
 					continue
 				}
 
-				var sentEntryKey = k + "-" + e.HostName
-				if _, ok := sentEntries[sentEntryKey]; ok {
+				// Create a unique hash for this service entry
+				var serviceEntryHash = createServiceEntryHash(e)
+				if _, ok := sentEntries[serviceEntryHash]; ok {
 					continue
 				}
 
@@ -308,7 +310,7 @@ func (c *client) mainloop(ctx context.Context, params *lookupParams) {
 				// This is also a point to possibly stop probing actively for a
 				// service entry.
 				params.Entries <- e
-				sentEntries[sentEntryKey] = e
+				sentEntries[serviceEntryHash] = e
 				if !params.isBrowsing {
 					params.disableProbing()
 				}
@@ -498,4 +500,20 @@ func (c *client) sendQuery(msg *dns.Msg) error {
 		}
 	}
 	return nil
+}
+
+func createServiceEntryHash(serviceEntry *ServiceEntry) string {
+	h := fnv.New32a()
+
+	h.Write([]byte(serviceEntry.ServiceInstanceName()))
+
+	for _, ip := range serviceEntry.AddrIPv4 {
+		h.Write([]byte(ip.String()))
+	}
+
+	for _, ip := range serviceEntry.AddrIPv6 {
+		h.Write([]byte(ip.String()))
+	}
+
+	return fmt.Sprintf("%d", h.Sum32())
 }
